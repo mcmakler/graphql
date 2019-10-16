@@ -39,6 +39,7 @@ import (
 	"mime/multipart"
 	"net/http"
 
+	newrelic "github.com/newrelic/go-agent"
 	"github.com/pkg/errors"
 )
 
@@ -87,6 +88,7 @@ func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error 
 		return ctx.Err()
 	default:
 	}
+
 	if len(req.files) > 0 && !c.useMultipartForm {
 		return errors.New("cannot send files with PostFields option")
 	}
@@ -117,6 +119,14 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	if err != nil {
 		return err
 	}
+
+	txn := newrelic.FromContext(ctx)
+	segment := newrelic.StartExternalSegment(txn, r)
+
+	defer func() {
+		_ = segment.End()
+	}()
+
 	r.Close = c.closeReq
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
@@ -188,6 +198,14 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	if err != nil {
 		return err
 	}
+
+	txn := newrelic.FromContext(ctx)
+	segment := newrelic.StartExternalSegment(txn, r)
+
+	defer func() {
+		_ = segment.End()
+	}()
+
 	r.Close = c.closeReq
 	r.Header.Set("Content-Type", writer.FormDataContentType())
 	r.Header.Set("Accept", "application/json; charset=utf-8")
